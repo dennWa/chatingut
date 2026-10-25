@@ -1,0 +1,33 @@
+body { margin:0; background:#4a7bc8 url() repeat; font:11px Verdana, Arial, sans-serif; color:#000; }
+a { color:#0033cc; } a:hover { color:#ff6600; }
+#wrap { width:800px; margin:10px auto; background:#fff; border:2px solid #003366; }
+#header { background:linear-gradient(#6fa0e8,#1e4f9c); color:#fff; padding:8px; border-bottom:2px solid #003366; }
+#header h1 { margin:0; font:bold 26px Georgia, "Times New Roman", serif; text-shadow:2px 2px #002050; }
+#header .online { float:right; font-weight:bold; margin-top:8px; }
+marquee { background:#ffffcc; border-bottom:1px solid #999; color:#cc0000; font-weight:bold; padding:2px; }
+#layout { width:100%; border-collapse:collapse; }
+#nav { width:140px; vertical-align:top; background:#dde8f7; border-right:1px solid #8aa6d1; padding:6px; }
+#nav a { display:block; margin:3px 0; padding:3px 5px; background:linear-gradient(#fff,#c8d8f0); border:1px outset #aac; text-decoration:none; font-weight:bold; }
+#nav a:hover { background:#ffcc66; }
+#nav .box { margin-top:12px; border:1px solid #8aa6d1; background:#fff; padding:4px; }
+#content { vertical-align:top; padding:10px; }
+.boxtitle { background:linear-gradient(#ff9933,#cc6600); color:#fff; font-weight:bold; padding:3px 6px; }
+.box2 { border:1px solid #cc6600; margin-bottom:10px; }
+.box2 .inner { padding:8px; }
+input[type=text], select { font:11px Verdana; border:2px inset #ccc; padding:2px; }
+button, .btn { font:bold 11px Verdana; background:linear-gradient(#fff,#ccc); border:2px outset #ddd; padding:3px 10px; cursor:pointer; }
+button:active { border-style:inset; }
+.colors label { display:inline-block; margin:2px; }
+.swatch { display:inline-block; width:14px; height:14px; border:1px solid #000; vertical-align:middle; }
+#footer { text-align:center; background:#dde8f7; border-top:2px solid #003366; padding:6px; font-size:10px; color:#333; }
+.b88 { display:inline-block; width:88px; height:31px; line-height:31px; margin:2px; border:1px solid #000; font:bold 9px Verdana; vertical-align:middle; }
+.counter { font:bold 13px "Courier New"; background:#000; color:#0f0; padding:1px 4px; letter-spacing:2px; }
+/* Chatseite */
+#room { width:600px; height:400px; background:#bfe3ff; border:2px inset #999; position:relative; }
+#room .placeholder { position:absolute; top:180px; width:100%; text-align:center; color:#456; font-weight:bold; }
+#userlist { width:160px; height:400px; vertical-align:top; border:2px inset #999; background:#fff; overflow:auto; }
+#userlist .ut { background:#1e4f9c; color:#fff; font-weight:bold; padding:2px 4px; }
+#chatlog { height:110px; overflow-y:scroll; border:2px inset #999; background:#fff; padding:3px; margin-top:6px; }
+#chatbar { margin-top:4px; }
+#chatbar input[type=text] { width:520px; }
+#emojis span { cursor:pointer; padding:0 2px; font-size:14px; }

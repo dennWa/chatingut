@@ -1,0 +1,34 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>PinguChat - Chatraum</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="wrap">
+  <div id="header"><span class="online">Eingeloggt als: <b id="me">?</b> | <a href="index.html" style="color:#ff0">Logout</a></span><h1>~*~ PinguChat ~*~</h1></div>
+  <marquee scrollamount="4">+++ Raum: Dorfplatz +++ Klick in den Raum zum Laufen +++ Klick auf einen Pingu f&uuml;r Privat / TicTacToe +++</marquee>
+  <div style="padding:8px">
+    <table cellspacing="0" cellpadding="0"><tr>
+      <td><div id="room"><div class="placeholder">[ Raum kommt in Phase 2 ]</div></div></td>
+      <td width="6"></td>
+      <td id="userlist"><div class="ut">User im Raum</div><div id="users"></div></td>
+    </tr></table>
+    <div id="chatlog"><i style="color:#888">*** Willkommen im Dorfplatz! ***</i></div>
+    <div id="chatbar">
+      <input type="text" id="msg" maxlength="120" placeholder="Nachricht eingeben..."> <button id="send">Senden</button>
+      <div id="emojis"></div>
+    </div>
+  </div>
+  <div id="footer">&copy; 2006 PinguChat &middot; Bitte bleib freundlich! :-)</div>
+</div>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+var nick = localStorage.getItem('nick');
+if (!nick) location.href = 'index.html';
+document.getElementById('me').innerHTML = nick;
+new Audio('/sounds/Windows XP Logon Sound.wav').play().catch(function(){});
+</script>
+</body>
+</html>

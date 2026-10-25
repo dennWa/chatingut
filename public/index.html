@@ -1,0 +1,64 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>PinguChat - Chatten wie früher</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="wrap">
+  <div id="header"><span class="online">User online: <b id="online">0</b></span><h1>~*~ PinguChat ~*~</h1></div>
+  <marquee scrollamount="4">+++ Willkommen bei PinguChat! +++ Chatten wie damals - ohne Algorithmus, ohne Werbung! +++ NEU: Bots Pingo &amp; Tuxi sind online! +++</marquee>
+  <table id="layout"><tr>
+    <td id="nav">
+      <a href="index.html">&raquo; Home</a>
+      <a href="chat.html">&raquo; Chat</a>
+      <a href="#" onclick="alert('Kommt bald!');return false">&raquo; Spiele</a>
+      <a href="#" onclick="alert('Kommt bald!');return false">&raquo; Hilfe</a>
+      <a href="#" onclick="alert('Kommt bald!');return false">&raquo; G&auml;stebuch</a>
+      <div class="box"><b>News:</b><br>25.10.2006<br>PinguChat ist online! Komm rein, wie früher im ICQ-Zeitalter.</div>
+    </td>
+    <td id="content">
+      <div class="box2"><div class="boxtitle">:: Herzlich Willkommen ::</div><div class="inner">
+        Hallo und willkommen bei <b>PinguChat</b>! Such dir einen Nicknamen und eine Farbe f&uuml;r deinen Pinguin aus und schon kann's losgehen. :-) Kein Anmelden, kein Passwort!
+      </div></div>
+      <div class="box2"><div class="boxtitle">:: Chat betreten ::</div><div class="inner">
+        <form id="loginForm">
+          Nickname: <input type="text" id="nick" maxlength="14"><br><br>
+          Pingufarbe:<br><div class="colors" id="colors"></div><br>
+          <button type="submit">&raquo; Chat betreten &laquo;</button>
+        </form>
+      </div></div>
+    </td>
+  </tr></table>
+  <div id="footer">
+    <span class="b88" style="background:#ffcc00">Made with Notepad</span>
+    <span class="b88" style="background:#3366cc;color:#fff">Best viewed IE6</span>
+    <span class="b88" style="background:#cc0000;color:#fff">Get Flash!</span><br>
+    Besucher seit 2006: <span class="counter" id="visits">000000</span><br>
+    Optimiert f&uuml;r 1024x768 &middot; &copy; 2006 PinguChat
+  </div>
+</div>
+<script>
+var COLORS = { blau:'#1e5bd6', rot:'#d61e1e', gruen:'#1ea83a', gelb:'#e8c31a', pink:'#e85bb5', lila:'#7a3ad6', schwarz:'#222222', orange:'#f07a10' };
+var c = document.getElementById('colors'), first = true;
+for (var k in COLORS) {
+  c.innerHTML += '<label><input type="radio" name="col" value="'+k+'"'+(first?' checked':'')+'><span class="swatch" style="background:'+COLORS[k]+'"></span> '+k+'</label>';
+  first = false;
+}
+document.getElementById('nick').value = localStorage.getItem('nick') || '';
+document.getElementById('loginForm').onsubmit = function (e) {
+  e.preventDefault();
+  var n = document.getElementById('nick').value.replace(/[^\w\-äöüÄÖÜß]/g, '');
+  if (n.length < 2) { new Audio('/sounds/Windows XP Error.wav').play(); alert('Nickname muss mind. 2 Zeichen haben!'); return; }
+  localStorage.setItem('nick', n);
+  localStorage.setItem('color', document.querySelector('input[name=col]:checked').value);
+  location.href = 'chat.html';
+};
+fetch('/api/stats').then(function(r){return r.json();}).then(function(s){
+  document.getElementById('online').innerHTML = s.online;
+  document.getElementById('visits').innerHTML = ('000000' + s.visits).slice(-6);
+});
+</script>
+</body>
+</html>
