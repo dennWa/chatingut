@@ -7,9 +7,10 @@ Start: `npm install` → `npm start` → http://localhost:3000
 - [x] Konzept, Ignore, Wegweiser
 - [x] P1 Grundgerüst: server.js, index.html (Login Nick+Farbe), chat.html (Layout-Platzhalter), style.css, Sounds unter /sounds, .gitignore
 - [x] Git verknüpft + gepusht
+- [x] P2 Raum: public/js/room.js (Canvas, Pingus, Klick-Laufen, Sync, Userliste)
 
 ## Geplant
-- [ ] P2 Raum
+
 - [ ] P3 Chat
 - [ ] P4 Privat
 - [ ] P5 Bots

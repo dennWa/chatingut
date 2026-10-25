@@ -30,5 +30,20 @@ if (!nick) location.href = 'index.html';
 document.getElementById('me').innerHTML = nick;
 new Audio('/sounds/Windows XP Logon Sound.wav').play().catch(function(){});
 </script>
+<script src="js/room.js"></script>
+<script>
+var socket = io();
+Room.init(socket, {
+  onUsers: function (list) {
+    document.getElementById('users').innerHTML = list.map(function (p) {
+      return '<div style="padding:2px 4px"><span class="swatch" style="background:' + Room.COLORS[p.color] + '"></span> ' +
+        (p.id === Room.myId() ? '<b>' + p.nick + '</b>' : p.nick) + '</div>';
+    }).join('');
+  },
+  onClickPlayer: function (p) { alert(p.nick + '\n(Privat & TicTacToe ab Phase 4/6)'); }
+});
+socket.on('welcome', function (d) { document.getElementById('me').innerHTML = d.me.nick; });
+socket.emit('join', { nick: nick, color: localStorage.getItem('color') });
+</script>
 </body>
 </html>
