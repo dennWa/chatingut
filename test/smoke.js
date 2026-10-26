@@ -22,9 +22,38 @@ function client(nick, color) {
   ok(wa && wa.players.some(p => p.nick === 'Pingo') && wa.players.some(p => p.nick === 'Tuxi'), 'Bots sind im Raum');
   ok(a.has('playerJoined', p => p.nick === 'Bernd'), 'Anna sieht Bernd kommen');
 
-  a.emit('move', { x: 300, y: 300 });
+  a.emit('move', { x: 300, y: 380 });
   await wait(300);
-  ok(b.has('playerMoved', m => m.id === a.id && m.x === 300), 'Bewegung wird synchronisiert');
+  ok(b.has('playerMoved', m => m.id === a.id && m.x === 300 && m.y === 380), 'Bewegung wird synchronisiert');
+  a.emit('move', { x: 300, y: 294 });
+  await wait(300);
+  ok(b.has('playerMoved', m => m.id === a.id && !(m.x === 300 && m.y === 294)), 'Klick auf Möbel -> nächster freier Bodenpunkt');
+
+  // Lounge: Kakao holen, Licht, Hinsetzen, Knuddeln, Emotes
+  a.emit('move', { x: 148, y: 350 }); await wait(200);
+  a.emit('use', 'kakao'); await wait(300);
+  ok(b.has('playerState', s => s.id === a.id && s.item === 'kakao'), 'Kakao holen');
+  await wait(1500);
+  a.emit('use', 'licht'); await wait(300);
+  ok(!b.has('act', x => x.type === 'licht'), 'Lichtschalter aus der Ferne geht nicht');
+  const seats = { sack2: [258, 372], hocker2: [544, 366], sessel: [410, 288], sack1: [538, 344] };
+  let seatId = null;
+  for (const [id, [x, y]] of Object.entries(seats)) {
+    a.got.length = 0;
+    a.emit('move', { x, y }); await wait(1600);
+    a.emit('sit', id); await wait(300);
+    if (a.has('playerMoved', m => m.id === a.id && m.seat === id)) { seatId = id; break; }
+  }
+  ok(seatId, 'Hinsetzen (' + seatId + ')');
+  b.emit('move', { x: 300, y: 380 }); await wait(200);
+  b.emit('sit', seatId); await wait(300);
+  ok(!a.has('playerMoved', m => m.id === b.id && m.seat), 'Sitzen ohne davor zu stehen geht nicht');
+  b.emit('knuddel', 'Anna'); await wait(300);
+  ok(a.has('act', x => x.type === 'knuddel' && x.to === a.id), 'Knuddeln');
+  await wait(900);
+  b.emit('emote', 'winken'); await wait(300);
+  ok(a.has('playerState', s => s.id === b.id && s.emote === 'winken'), 'Winken');
+  a.emit('move', { x: 300, y: 380 }); await wait(300);
 
   a.emit('say', 'Hallo Pingo :)');
   await wait(2800);

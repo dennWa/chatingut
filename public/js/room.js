@@ -1,65 +1,263 @@
-// Raum: Zeichnen der Pinguine, Klick-Laufen, Sync ueber Socket.io
+// Raum "Lounge": Grafik-Ebenen, Pinguine, Laufen mit Wegfindung, Sitzen, Objekte, Effekte, Sync per Socket.io
 var Room = (function () {
-  var COLORS = { blau:'#1e5bd6', rot:'#d61e1e', gruen:'#1ea83a', gelb:'#e8c31a', pink:'#e85bb5', lila:'#7a3ad6', schwarz:'#222222', orange:'#f07a10' };
-  var W = 600, H = 400, FLOOR_Y = 170, SPEED = 130; // px pro Sekunde
-  var last = 0;
-  var canvas, ctx, socket, myId, onUsers, onClickPlayer, roomEl;
-  var players = {}; // id -> { nick, color, x, y, tx, ty, dir, step }
+  var L = Lounge, SPEED = 130; // px pro Sekunde
+  var roomEl, socket, myId, onUsers, onClickPlayer;
+  var players = {}, props = {}, room = {}, pending = null, hoverObj = null, last = 0, noteTimer = null;
+
+  var BOOKS = [
+    ['Die Eisscholle von Tante Frieda', 'Kapitel 1: Es war kalt. Kapitel 2: Es war immer noch kalt. Ein Klassiker!'],
+    ['56k - Eine Liebesgeschichte', '"Piiieeep... krrrrrr... dong-dong..." - Sie wählte sich ein. Er war schon online. Es war Schicksal.'],
+    ['Das große Puffle-Pflegebuch', 'Tipp 7: Puffles lieben Kekse. Tipp 8: Gib ihnen trotzdem nicht alle Kekse.'],
+    ['Tuxis TicTacToe-Strategien', 'Seite 1: Nimm immer die Mitte. Seite 2-300: Siehe Seite 1.'],
+    ['Gedichte am Kamin', 'Das Feuer knistert, der Kakao dampft, / der Pinguin hat sich ins Sofa gekrampft.'],
+    ['Handbuch: Nokia 3310', 'Kapitel 4: Snake II - wie du deinen Highscore in der Mathestunde verbesserst.'],
+    ['Mein MSN-Status und ich', '"~*~ chillen mit da crew ~*~ (B)(B) bin weg ~ oder doch nich?"']
+  ];
 
   function init(sock, opts) {
     socket = sock;
     onUsers = opts.onUsers;
     onClickPlayer = opts.onClickPlayer;
-    var room = roomEl = document.getElementById('room');
-    room.innerHTML = '';
-    canvas = document.createElement('canvas');
-    canvas.width = W; canvas.height = H;
-    room.appendChild(canvas);
-    ctx = canvas.getContext('2d');
-    canvas.onclick = handleClick;
+    roomEl = document.getElementById('room');
+    roomEl.innerHTML = '';
+    L.PROPS.forEach(function (pr) {
+      var img = document.createElement('img');
+      img.src = 'img/lounge/' + pr.id + '.svg';
+      img.className = 'prop'; img.alt = ''; img.draggable = false;
+      img.style.zIndex = pr.z;
+      roomEl.appendChild(img);
+      props[pr.id] = img;
+    });
+    var dim = document.createElement('div');
+    dim.className = 'dimmer';
+    roomEl.appendChild(dim);
+    L.LIGHTS.forEach(function (l) {
+      var g = document.createElement('div');
+      g.className = 'glowl' + (l.flick ? ' flick' : '');
+      g.style.cssText = 'left:' + (l.x - l.r) + 'px;top:' + (l.y - l.r) + 'px;width:' + 2 * l.r + 'px;height:' + 2 * l.r + 'px;' +
+        'background:radial-gradient(circle,rgba(' + l.c + ',.85) 0%,rgba(' + l.c + ',.32) 40%,rgba(' + l.c + ',0) 70%)';
+      roomEl.appendChild(g);
+    });
+    roomEl.onclick = handleClick;
+    roomEl.onmousemove = handleHover;
+    roomEl.onmouseleave = function () { setHover(null); };
 
     socket.on('welcome', function (d) {
-      myId = d.me.id; players = {};
+      for (var k in players) removeEl(players[k]);
+      players = {};
+      myId = d.me.id;
       d.players.forEach(add);
+      setRoom(d.room || {});
       changed();
     });
     socket.on('playerJoined', function (p) { add(p); changed(); });
-    socket.on('playerLeft', function (id) { if (players[id]) removeBubble(players[id]); delete players[id]; changed(); });
-    socket.on('playerMoved', function (m) {
-      var p = players[m.id]; if (!p) return;
-      p.tx = m.x; p.ty = m.y;
+    socket.on('playerLeft', function (id) { if (players[id]) removeEl(players[id]); delete players[id]; changed(); });
+    socket.on('playerMoved', function (m) { var p = players[m.id]; if (p) moveTo(p, m.x, m.y, m.seat); });
+    socket.on('playerState', function (s) {
+      var p = players[s.id]; if (!p) return;
+      p.item = s.item; p.emote = s.emote;
+      if (p.emote) { p.view = 'front'; p.left = false; }
+    });
+    socket.on('roomState', setRoom);
+    socket.on('act', function (a) {
+      if (a.type === 'knuddel') { hearts(a.to); hearts(a.from, 2); }
+      else if (a.type === 'kamin') sparks();
+      else if (a.type === 'puffle') wakePuffle();
+      else if (a.type === 'kakao' || a.type === 'kekse') hearts(a.from, 1);
     });
     setInterval(update, 30);
     requestAnimationFrame(loop);
   }
 
-  function add(p) { players[p.id] = { id:p.id, nick:p.nick, color:p.color, bot:p.bot, x:p.x, y:p.y, tx:p.x, ty:p.y, dir:1, step:0 }; }
+  // ---------- Spieler ----------
+  function add(p) {
+    if (players[p.id]) removeEl(players[p.id]);
+    var el = document.createElement('div');
+    el.innerHTML = '<div class="fig" style="' + Pingu.vars(p.color) + '">' + Pingu.svg() + '</div><div class="name"></div>';
+    el.querySelector('.name').textContent = p.nick;
+    el.pid = p.id;
+    roomEl.appendChild(el);
+    var q = players[p.id] = { id: p.id, nick: p.nick, color: p.color, bot: p.bot, x: p.x, y: p.y, path: [], el: el,
+      fig: el.querySelector('.fig'), view: 'front', left: false, seat: null, sitTarget: null, item: p.item, emote: p.emote };
+    if (p.seat) sitDown(q, p.seat);
+    render(q);
+  }
+  function removeEl(p) { removeBubble(p); if (p.el.parentNode) p.el.parentNode.removeChild(p.el); }
   function changed() { if (onUsers) onUsers(list()); }
   function list() { return Object.keys(players).map(function (k) { return players[k]; }); }
 
-  function handleClick(e) {
-    var r = canvas.getBoundingClientRect();
-    var x = e.clientX - r.left, y = e.clientY - r.top;
-    // Klick auf einen anderen Pingu?
-    var hit = list().filter(function (p) { return p.id !== myId && Math.abs(p.x - x) < 20 && y > p.y - 50 && y < p.y + 5; })[0];
-    if (hit) { if (onClickPlayer) onClickPlayer(hit, e.pageX, e.pageY); e.stopPropagation(); return; }
-    if (y < FLOOR_Y) y = FLOOR_Y;
-    socket.emit('move', { x: x, y: y });
+  function sitDown(p, seatId) {
+    var s = L.SEATS[seatId];
+    p.seat = seatId; p.sitTarget = null; p.path = [];
+    p.x = s.x; p.y = s.y;
+    p.view = s.face === 'front' ? 'front' : 'side';
+    p.left = s.face === 'left';
   }
 
-  // Bewegung zeitbasiert (laeuft auch weiter, wenn der Tab gedrosselt wird)
+  // Neues Ziel: erst vom Platz aufstehen, dann Weg suchen, ggf. am Ende auf den Sitz huepfen
+  function moveTo(p, x, y, seatId) {
+    var path = [], fx = p.x, fy = p.y;
+    if (p.seat) { var os = L.SEATS[p.seat]; path.push({ x: os.ax, y: os.ay }); fx = os.ax; fy = os.ay; }
+    p.seat = null; p.sitTarget = seatId || null;
+    if (seatId) {
+      var s = L.SEATS[seatId];
+      path = path.concat(L.findPath(fx, fy, s.ax, s.ay));
+      path.push({ x: s.x, y: s.y });
+    } else {
+      path = path.concat(L.findPath(fx, fy, x, y));
+    }
+    p.path = path;
+    if (p.id === myId && pending && !seatId && Math.abs(x - pending.x) < 2 && Math.abs(y - pending.y) < 2) pending.ok = true;
+  }
+
+  // ---------- Bewegung (zeitbasiert, laeuft auch weiter, wenn der Tab gedrosselt wird) ----------
   function update() {
-    var now = Date.now(), dt = last ? Math.min((now - last) / 1000, 1) : 0, step = SPEED * dt;
+    var now = Date.now(), dt = last ? Math.min((now - last) / 1000, 1) : 0;
     last = now;
     list().forEach(function (p) {
-      var dx = p.tx - p.x, dy = p.ty - p.y, d = Math.sqrt(dx*dx + dy*dy);
-      if (d > step) { p.x += dx / d * step; p.y += dy / d * step; p.step += dt * 20; if (Math.abs(dx) > 1) p.dir = dx > 0 ? 1 : -1; }
-      else { p.x = p.tx; p.y = p.ty; p.step = 0; }
+      var budget = SPEED * dt, moved = false;
+      while (budget > 0 && p.path.length) {
+        var t = p.path[0], dx = t.x - p.x, dy = t.y - p.y, d = Math.sqrt(dx * dx + dy * dy);
+        if (d > 0.5) face(p, dx, dy);
+        if (d <= budget) { p.x = t.x; p.y = t.y; budget -= d; p.path.shift(); }
+        else { p.x += dx / d * budget; p.y += dy / d * budget; budget = 0; }
+        moved = true;
+      }
+      p.walking = moved || p.path.length > 0;
+      if (!p.path.length && p.sitTarget) sitDown(p, p.sitTarget);
+      if (p.id === myId && pending && pending.ok && !p.path.length) arrive(p);
     });
   }
-  function loop() { update(); draw(); placeBubbles(); requestAnimationFrame(loop); }
+  function face(p, dx, dy) {
+    if (Math.abs(dy) > Math.abs(dx) * 1.2) { p.view = dy > 0 ? 'front' : 'back'; p.left = false; }
+    else { p.view = 'side'; p.left = dx < 0; }
+  }
+  function loop() { update(); list().forEach(render); placeBubbles(); requestAnimationFrame(loop); }
 
-  // Sprechblasen als HTML ueber dem Canvas (damit Emoji-Bilder gehen)
+  function render(p) {
+    var s = L.scaleAt(p.y), tf = 'translate(' + p.x.toFixed(1) + 'px,' + p.y.toFixed(1) + 'px)';
+    if (p._tf !== tf) { p.el.style.transform = tf; p.el.style.zIndex = Math.round(p.y); p._tf = tf; }
+    var fs = 'scale(' + s.toFixed(3) + ')';
+    if (p._fs !== fs) { p.fig.style.transform = fs; p._fs = fs; }
+    var cls = 'pg ' + p.view + (p.left ? ' left' : '') + (p.walking ? ' walk' : '') + (p.seat ? ' sit' : '') +
+      (p.item ? ' ' + p.item : '') + (p.emote && !p.walking ? ' ' + p.emote : '') + (p.id === myId ? ' me' : '');
+    if (p._cls !== cls) { p.el.className = cls; p._cls = cls; }
+  }
+
+  // ---------- Klicks + Objekte ----------
+  function pos(e) {
+    var r = roomEl.getBoundingClientRect();
+    return { x: Math.round(e.clientX - r.left - roomEl.clientLeft), y: Math.round(e.clientY - r.top - roomEl.clientTop) };
+  }
+  function handleClick(e) {
+    if (!myId || !players[myId]) return;
+    Music.unlock();
+    var pg = e.target.closest ? e.target.closest('.pg') : null;
+    if (pg && players[pg.pid]) {
+      e.stopPropagation();
+      if (onClickPlayer) onClickPlayer(players[pg.pid], e.pageX, e.pageY);
+      return;
+    }
+    var c = pos(e), o = L.objectAt(c.x, c.y);
+    pending = null;
+    if (o) return useObject(o);
+    socket.emit('move', c);
+  }
+  function handleHover(e) {
+    var pg = e.target.closest ? e.target.closest('.pg') : null;
+    if (pg) return setHover(null);
+    var c = pos(e);
+    setHover(L.objectAt(c.x, c.y));
+  }
+  function setHover(o) {
+    if (o === hoverObj) return;
+    if (hoverObj) props[hoverObj.prop].classList.remove('hl');
+    hoverObj = o;
+    if (o) props[o.prop].classList.add('hl');
+    roomEl.title = o ? o.name : '';
+    roomEl.className = (o ? 'pointer' : '') + (room.dim ? ' dim' : '');
+  }
+
+  function seatTaken(id) {
+    return list().some(function (p) { return p.id !== myId && (p.seat === id || p.sitTarget === id); });
+  }
+  function useObject(o) {
+    var me = players[myId];
+    if (o.seats) {
+      if (me.seat && o.seats.indexOf(me.seat) >= 0) return;
+      var free = o.seats.filter(function (s) { return !seatTaken(s); });
+      if (!free.length) return Chat.sys('Hier ist leider schon alles besetzt!');
+      free.sort(function (a, b) {
+        var sa = L.SEATS[a], sb = L.SEATS[b];
+        return Math.hypot(sa.ax - me.x, sa.ay - me.y) - Math.hypot(sb.ax - me.x, sb.ay - me.y);
+      });
+      var s = L.SEATS[free[0]];
+      pending = { seat: free[0], x: s.ax, y: s.ay };
+    } else {
+      pending = { obj: o, x: o.ax, y: o.ay };
+    }
+    if (!me.seat && Math.abs(me.x - pending.x) < 2 && Math.abs(me.y - pending.y) < 2 && !me.path.length) { pending.ok = true; return; }
+    socket.emit('move', { x: pending.x, y: pending.y });
+  }
+  function arrive(me) {
+    var a = pending;
+    pending = null;
+    if (Math.abs(me.x - a.x) > 3 || Math.abs(me.y - a.y) > 3) return;
+    if (a.seat) {
+      socket.emit('sit', a.seat);
+      if (a.seat.indexOf('hocker') === 0) Chat.sys('Du sitzt am Spieltisch. Klick auf einen Pingu und wähle "TicTacToe spielen"!');
+    } else if (a.obj.local) {
+      if (a.obj.id === 'regal') readBook();
+    } else {
+      socket.emit('use', a.obj.id);
+    }
+  }
+  function readBook() {
+    var b = BOOKS[Math.floor(Math.random() * BOOKS.length)];
+    var w = Win.create('Bücherregal', { width: 280 });
+    w.body.innerHTML = '<p><b></b></p><p style="font-style:italic"></p><button>Zuklappen</button>';
+    w.body.querySelector('b').textContent = '"' + b[0] + '"';
+    w.body.querySelectorAll('p')[1].textContent = b[1];
+    w.body.querySelector('button').onclick = w.close;
+    Snd.play('Windows Navigation Start', 0.4);
+  }
+
+  // ---------- Raumzustand + Effekte ----------
+  function setRoom(r) {
+    var wasDim = room.dim;
+    room = r || {};
+    roomEl.classList.toggle('dim', !!room.dim);
+    if (wasDim !== undefined && wasDim !== room.dim) Snd.play('Windows Navigation Start', 0.5);
+    Music.set(!!room.radio);
+    clearInterval(noteTimer);
+    if (room.radio) noteTimer = setInterval(function () { fx('note', Math.random() < 0.5 ? '♪' : '♫', 448 + Math.random() * 14, 178, -20 + Math.random() * 10); }, 700);
+  }
+  function fx(cls, text, x, y, dx) {
+    var e = document.createElement('div');
+    e.className = 'fx ' + cls;
+    e.textContent = text || '';
+    e.style.left = x + 'px'; e.style.top = y + 'px';
+    e.style.setProperty('--dx', (dx || 0) + 'px');
+    roomEl.appendChild(e);
+    setTimeout(function () { if (e.parentNode) e.parentNode.removeChild(e); }, 2700);
+  }
+  function hearts(id, n) {
+    var p = players[id]; if (!p) return;
+    var top = p.y - 64 * L.scaleAt(p.y);
+    for (var i = 0; i < (n || 6); i++) {
+      (function (i) { setTimeout(function () { fx('heart', '♥', p.x - 8 + (Math.random() - 0.5) * 30, top + Math.random() * 10, (Math.random() - 0.5) * 30); }, i * 140); })(i);
+    }
+  }
+  function sparks() {
+    for (var i = 0; i < 14; i++) fx('spark', '', 285 + Math.random() * 30, 140 + Math.random() * 20, (Math.random() - 0.5) * 60);
+  }
+  function wakePuffle() {
+    props.puffle.src = 'img/lounge/puffle-wach.svg';
+    clearTimeout(wakePuffle.t);
+    wakePuffle.t = setTimeout(function () { props.puffle.src = 'img/lounge/puffle.svg'; }, 4000);
+  }
+
+  // ---------- Sprechblasen (HTML, damit Emoji-Bilder gehen) ----------
   function say(id, html) {
     var p = players[id]; if (!p) return;
     removeBubble(p);
@@ -78,77 +276,66 @@ var Room = (function () {
     list().forEach(function (p) {
       if (!p.bubble) return;
       var b = p.bubble, w = b.offsetWidth, h = b.offsetHeight;
-      b.style.left = Math.max(2, Math.min(W - w - 2, p.x - w / 2)) + 'px';
-      b.style.top = Math.max(2, p.y - 66 - h) + 'px';
+      b.style.left = Math.max(2, Math.min(L.W - w - 2, p.x - w / 2)) + 'px';
+      b.style.top = Math.max(2, p.y - 66 * L.scaleAt(p.y) - h - 4) + 'px';
     });
   }
   function byNick(n) { n = String(n).toLowerCase(); return list().filter(function (p) { return p.nick.toLowerCase() === n; })[0]; }
 
-  function draw() {
-    drawBackground();
-    list().sort(function (a, b) { return a.y - b.y; }).forEach(drawPingu);
-  }
+  return {
+    init: init, say: say, byNick: byNick,
+    nick: function () { return players[myId] ? players[myId].nick : ''; },
+    players: function () { return players; },
+    me: function () { return players[myId]; },
+    myId: function () { return myId; }
+  };
+})();
 
-  function drawBackground() {
-    var g = ctx.createLinearGradient(0, 0, 0, FLOOR_Y);
-    g.addColorStop(0, '#5d8fd8'); g.addColorStop(1, '#bfe0ff');
-    ctx.fillStyle = g; ctx.fillRect(0, 0, W, FLOOR_Y);
-    // Berge
-    ctx.fillStyle = '#e8f2fb';
-    tri(0, FLOOR_Y, 120, 60, 260, FLOOR_Y); tri(180, FLOOR_Y, 330, 40, 480, FLOOR_Y); tri(400, FLOOR_Y, 520, 75, 640, FLOOR_Y);
-    // Haeuser
-    house(40, 95, 110, 75, '#8b5a2b', 'Cafe');
-    house(450, 100, 120, 70, '#6b6bb0', 'Disco');
-    // Boden
-    ctx.fillStyle = '#f4f9ff'; ctx.fillRect(0, FLOOR_Y, W, H - FLOOR_Y);
-    ctx.fillStyle = '#dbe9f6';
-    ctx.beginPath(); ctx.ellipse(300, 300, 180, 50, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#5a7da8'; ctx.font = 'bold 11px Verdana'; ctx.textAlign = 'center';
-    ctx.fillText('~ Dorfplatz ~', 300, 304);
-  }
-  function tri(x1, y1, x2, y2, x3, y3) { ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.lineTo(x3, y3); ctx.fill(); }
-  function house(x, y, w, h, col, label) {
-    ctx.fillStyle = col; ctx.fillRect(x, y, w, h);
-    ctx.fillStyle = '#fff'; tri(x - 8, y, x + w / 2, y - 30, x + w + 8, y);
-    ctx.fillStyle = '#3a2410'; ctx.fillRect(x + w / 2 - 12, y + h - 35, 24, 35);
-    ctx.fillStyle = '#ffe680'; ctx.fillRect(x + 10, y + 12, 20, 16); ctx.fillRect(x + w - 30, y + 12, 20, 16);
-    ctx.fillStyle = '#fff'; ctx.font = 'bold 10px Verdana'; ctx.textAlign = 'center'; ctx.fillText(label, x + w / 2, y + 8 + 0);
-  }
+// Spieluhr-Melodie fuers Grammophon (Web Audio, selbst komponiert, leise)
+var Music = (function () {
+  var ac, gain, on = false, timer, next = 0, step = 0;
+  var BEAT = 0.34;
+  // Walzer in C: [Melodie, Bass] je Schlag (0 = Pause)
+  var MEL = [64, 67, 72, 71, 67, 64, 65, 69, 74, 72, 69, 65, 67, 71, 74, 72, 71, 69, 67, 64, 67, 72, 0, 0,
+    64, 67, 72, 71, 67, 64, 65, 69, 74, 72, 69, 65, 67, 71, 74, 77, 74, 71, 72, 67, 64, 60, 0, 0];
+  var BASS = [48, 0, 0, 43, 0, 0, 41, 0, 0, 45, 0, 0, 43, 0, 0, 43, 0, 0, 48, 0, 0, 48, 0, 0,
+    48, 0, 0, 43, 0, 0, 41, 0, 0, 45, 0, 0, 43, 0, 0, 43, 0, 0, 48, 0, 0, 48, 0, 0];
+  var hz = function (n) { return 440 * Math.pow(2, (n - 69) / 12); };
 
-  function drawPingu(p) {
-    var x = p.x, y = p.y, c = COLORS[p.color] || COLORS.blau;
-    var bob = p.step ? Math.sin(p.step) * 2 : 0;
-    ctx.save(); ctx.translate(x, y); ctx.scale(p.dir, 1);
-    // Schatten
-    ctx.fillStyle = 'rgba(0,0,0,.15)'; ctx.beginPath(); ctx.ellipse(0, 0, 16, 4, 0, 0, Math.PI*2); ctx.fill();
-    // Fuesse
-    ctx.fillStyle = '#f5a623';
-    ctx.beginPath(); ctx.ellipse(-6, -2 + (p.step ? bob : 0), 6, 3, 0, 0, Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(6, -2 - (p.step ? bob : 0), 6, 3, 0, 0, Math.PI*2); ctx.fill();
-    ctx.translate(0, -bob * 0.5);
-    // Koerper
-    ctx.fillStyle = c; ctx.beginPath(); ctx.ellipse(0, -22, 15, 20, 0, 0, Math.PI*2); ctx.fill();
-    // Fluegel
-    ctx.beginPath(); ctx.ellipse(-14, -20, 4, 11, 0.3, 0, Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(14, -20, 4, 11, -0.3, 0, Math.PI*2); ctx.fill();
-    // Bauch
-    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.ellipse(2, -18, 10, 14, 0, 0, Math.PI*2); ctx.fill();
-    // Kopf
-    ctx.fillStyle = c; ctx.beginPath(); ctx.arc(0, -44, 12, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.ellipse(4, -43, 7, 8, 0, 0, Math.PI*2); ctx.fill();
-    // Augen
-    ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(2, -46, 1.8, 0, Math.PI*2); ctx.arc(8, -46, 1.8, 0, Math.PI*2); ctx.fill();
-    // Schnabel
-    ctx.fillStyle = '#f5a623'; tri(3, -42, 15, -40, 3, -38);
-    ctx.restore();
-    // Name
-    ctx.font = 'bold 10px Verdana'; ctx.textAlign = 'center';
-    var w = ctx.measureText(p.nick).width + 8;
-    ctx.fillStyle = p.id === myId ? 'rgba(255,255,160,.9)' : 'rgba(255,255,255,.85)';
-    ctx.fillRect(x - w/2, y + 4, w, 13);
-    ctx.strokeStyle = '#7a8aa0'; ctx.strokeRect(x - w/2 + .5, y + 4.5, w - 1, 12);
-    ctx.fillStyle = '#000'; ctx.fillText(p.nick, x, y + 14);
+  function note(n, t, type, vol, len) {
+    var o = ac.createOscillator(), g = ac.createGain();
+    o.type = type; o.frequency.value = hz(n);
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(vol, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.001, t + len);
+    o.connect(g); g.connect(gain);
+    o.start(t); o.stop(t + len + 0.05);
   }
-
-  return { init: init, say: say, nick: function () { return players[myId] ? players[myId].nick : ''; }, byNick: byNick, players: function () { return players; }, myId: function () { return myId; }, COLORS: COLORS };
+  function tick() {
+    var muted = document.getElementById('mute') && document.getElementById('mute').checked;
+    gain.gain.value = muted ? 0 : 1;
+    while (next < ac.currentTime + 0.4) {
+      var i = step % MEL.length;
+      if (MEL[i]) { note(MEL[i], next, 'triangle', 0.09, BEAT * 1.6); note(MEL[i] + 12, next, 'sine', 0.025, BEAT); }
+      if (BASS[i]) note(BASS[i], next, 'square', 0.025, BEAT * 2.2);
+      next += BEAT; step++;
+    }
+  }
+  function start() {
+    if (!ac || timer) return;
+    if (ac.state === 'suspended') ac.resume();
+    next = ac.currentTime + 0.1; step = 0;
+    timer = setInterval(tick, 120);
+  }
+  function stop() { clearInterval(timer); timer = null; }
+  return {
+    unlock: function () {
+      if (ac) return;
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      ac = new AC(); gain = ac.createGain(); gain.connect(ac.destination);
+      if (on) start();
+    },
+    set: function (v) { on = v; if (on) start(); else stop(); }
+  };
 })();

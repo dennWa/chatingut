@@ -8,7 +8,7 @@
 <body>
 <div id="wrap">
   <div id="header"><span class="online">Eingeloggt als: <b id="me">?</b> | <label><input type="checkbox" id="mute"> Ton aus</label> | <a href="index.html" id="logout" style="color:#ff0">Logout</a></span><h1>~*~ PinguChat ~*~</h1></div>
-  <marquee scrollamount="4">+++ Raum: Dorfplatz +++ Klick in den Raum zum Laufen +++ Klick auf einen Pingu: Privat schreiben oder TicTacToe +++ /hilfe zeigt alle Befehle +++</marquee>
+  <marquee scrollamount="4">+++ Raum: Die Lounge +++ Klick auf den Boden zum Laufen +++ Klick aufs Sofa zum Hinsetzen +++ Grammophon = Musik, Lichtschalter = Kuschellicht +++ Gratis Kakao an der Bude! +++ Klick auf einen Pingu: Privat, Knuddeln, TicTacToe +++ /hilfe zeigt alle Befehle +++</marquee>
   <div style="padding:8px">
     <table cellspacing="0" cellpadding="0"><tr>
       <td><div id="room"></div></td>
@@ -25,6 +25,8 @@
 </div>
 <script src="/socket.io/socket.io.js"></script>
 <script src="js/emoji.js"></script>
+<script src="js/pingu.js"></script>
+<script src="js/lounge.js"></script>
 <script src="js/room.js"></script>
 <script src="js/chat.js"></script>
 <script src="js/ttt.js"></script>
@@ -45,7 +47,7 @@ Room.init(socket, {
     list.sort(function (a, b) { return a.nick.localeCompare(b.nick); }).forEach(function (p) {
       var d = document.createElement('div');
       d.className = 'u' + (p.id === Room.myId() ? ' self' : '');
-      d.innerHTML = '<span class="swatch" style="background:' + Room.COLORS[p.color] + '"></span> ' + Emoji.esc(p.nick) + (p.bot ? ' <small>[Bot]</small>' : '');
+      d.innerHTML = '<span class="swatch" style="background:' + Pingu.COLORS[p.color] + '"></span> ' + Emoji.esc(p.nick) + (p.bot ? ' <small>[Bot]</small>' : '');
       d.onclick = function (e) { e.stopPropagation(); Chat.showMenu(p, e.pageX - 120, e.pageY); };
       box.appendChild(d);
     });

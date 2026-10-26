@@ -72,7 +72,7 @@ var Chat = (function () {
 
     socket.on('welcome', function (d) {
       d.players.forEach(function (p) { nicks[p.id] = p.nick; });
-      sys('*** Willkommen auf dem Dorfplatz, ' + d.me.nick + '! Tippe /hilfe für Befehle. ***');
+      sys('*** Willkommen in der Lounge, ' + d.me.nick + '! Klick aufs Sofa, den Kamin, das Grammophon... Tippe /hilfe für Befehle. ***');
     });
     socket.on('playerJoined', function (p) { nicks[p.id] = p.nick; sys('*** ' + p.nick + ' betritt den Raum ***'); });
     socket.on('playerLeft', function (id) { if (nicks[id]) sys('*** ' + nicks[id] + ' hat den Raum verlassen ***'); delete nicks[id]; });
@@ -84,6 +84,10 @@ var Chat = (function () {
       if (!mine) Snd.play('ding', 0.25);
     });
     socket.on('sys', sys);
+    socket.on('act', function (a) {
+      log('<span class="act">' + Emoji.esc(a.text) + '</span>');
+      if (a.type === 'knuddel' && a.to === Room.myId()) Snd.play('Windows XP Balloon', 0.5);
+    });
     socket.on('pm', function (m) {
       var w = pmWindow(m.from);
       pmLine(w, m.from, m.text, false);
@@ -101,8 +105,12 @@ var Chat = (function () {
     var m = t.match(/^\/(p|msg|w)\s+(\S+)\s+(.+)$/i);
     if (m) return socket.emit('pm', { to: m[2], text: m[3] });
     if (/^\/(hilfe|help)$/i.test(t)) {
-      return sys('Befehle: /p Nick Text = Privatnachricht | /ttt Nick = TicTacToe-Einladung | Klick auf Pingu oder Userliste = Menü | Smileys: :) ;) :D xD :P :( :\'( :O 8) :@ :| ^^ <3');
+      return sys('Befehle: /p Nick Text = Privat | /ttt Nick = TicTacToe | /knuddel Nick | /winken | /tanzen | Klick auf Pingu = Menü, Klick auf Möbel = hinsetzen/benutzen | Smileys: :) ;) :D xD :P :( :\'( :O 8) :@ :| ^^ <3');
     }
+    var kn = t.match(/^\/(knuddel|knuddeln|k)\s+(\S+)$/i);
+    if (kn) return socket.emit('knuddel', kn[2]);
+    if (/^\/(winken|wink)$/i.test(t)) return socket.emit('emote', 'winken');
+    if (/^\/(tanzen|tanz|dance)$/i.test(t)) return socket.emit('emote', 'tanzen');
     var tt = t.match(/^\/ttt\s+(\S+)$/i);
     if (tt) { var p = Room.byNick(tt[1]); return p ? TTT.invite(p) : sys('User "' + tt[1] + '" nicht gefunden.'); }
     if (t[0] === '/') return sys('Unbekannter Befehl. Tippe /hilfe');
@@ -134,11 +142,13 @@ var Chat = (function () {
   // Klick-Menue fuer einen Spieler
   function showMenu(p, x, y) {
     closeMenu();
-    if (p.id === Room.myId()) return;
+    var self = p.id === Room.myId();
     menu = document.createElement('div');
     menu.className = 'menu';
-    menu.innerHTML = '<div class="mt"></div><a href="#" data-a="pm">&raquo; Privat schreiben</a><a href="#" data-a="ttt">&raquo; TicTacToe spielen</a>';
-    menu.querySelector('.mt').textContent = p.nick + (p.bot ? ' [Bot]' : '');
+    menu.innerHTML = '<div class="mt"></div>' + (self
+      ? '<a href="#" data-a="winken">&raquo; Winken</a><a href="#" data-a="tanzen">&raquo; Tanzen</a>' + (p.seat ? '<a href="#" data-a="stand">&raquo; Aufstehen</a>' : '')
+      : '<a href="#" data-a="pm">&raquo; Privat schreiben</a><a href="#" data-a="knuddel">&raquo; Knuddeln &hearts;</a><a href="#" data-a="ttt">&raquo; TicTacToe spielen</a>');
+    menu.querySelector('.mt').textContent = self ? 'Das bist du!' : p.nick + (p.bot ? ' [Bot]' : '');
     menu.style.left = x + 'px'; menu.style.top = y + 'px';
     menu.onclick = function (e) {
       var a = e.target.getAttribute('data-a');
@@ -146,6 +156,9 @@ var Chat = (function () {
       e.preventDefault(); closeMenu();
       if (a === 'pm') pmWindow(p.nick);
       if (a === 'ttt') TTT.invite(p);
+      if (a === 'knuddel') socket.emit('knuddel', p.id);
+      if (a === 'winken' || a === 'tanzen') socket.emit('emote', a);
+      if (a === 'stand') { var s = Lounge.SEATS[p.seat]; socket.emit('move', { x: s.ax, y: s.ay }); }
     };
     document.body.appendChild(menu);
     Snd.play('Windows XP Menu Command', 0.4);

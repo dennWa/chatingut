@@ -23,11 +23,18 @@
         Hallo und willkommen bei <b>PinguChat</b>! Such dir einen Nicknamen und eine Farbe f&uuml;r deinen Pinguin aus und schon kann's losgehen. :-) Kein Anmelden, kein Passwort!
       </div></div>
       <div class="box2"><div class="boxtitle">:: Chat betreten ::</div><div class="inner">
+        <div id="pinguPreview" class="pgprev"></div>
         <form id="loginForm">
           Nickname: <input type="text" id="nick" maxlength="14"><br><br>
           Pingufarbe:<br><div class="colors" id="colors"></div><br>
           <button type="submit">&raquo; Chat betreten &laquo;</button>
         </form>
+        <br style="clear:both">
+      </div></div>
+      <div class="box2"><div class="boxtitle">:: NEU: Die Lounge ::</div><div class="inner">
+        <div id="loungePreview" class="loungeprev"></div>
+        Kamin, Kuschelsofa, Grammophon und gratis Kakao! Setz dich hin, knuddel deine Freunde und mach's dir gem&uuml;tlich. <b>*knuddel*</b>
+        <br style="clear:both">
       </div></div>
     </td>
   </tr></table>
@@ -39,13 +46,24 @@
     Optimiert f&uuml;r 1024x768 &middot; &copy; 2006 PinguChat
   </div>
 </div>
+<script src="js/pingu.js"></script>
+<script src="js/lounge.js"></script>
 <script>
-var COLORS = { blau:'#1e5bd6', rot:'#d61e1e', gruen:'#1ea83a', gelb:'#e8c31a', pink:'#e85bb5', lila:'#7a3ad6', schwarz:'#222222', orange:'#f07a10' };
-var c = document.getElementById('colors'), first = true;
+var COLORS = Pingu.COLORS, saved = localStorage.getItem('color');
+if (!COLORS[saved]) saved = 'blau';
+var c = document.getElementById('colors');
 for (var k in COLORS) {
-  c.innerHTML += '<label><input type="radio" name="col" value="'+k+'"'+(first?' checked':'')+'><span class="swatch" style="background:'+COLORS[k]+'"></span> '+k+'</label>';
-  first = false;
+  c.innerHTML += '<label><input type="radio" name="col" value="'+k+'"'+(k===saved?' checked':'')+'><span class="swatch" style="background:'+COLORS[k]+'"></span> '+k+'</label>';
 }
+// Vorschau: eigener Pingu in der gewaehlten Farbe
+var prev = document.getElementById('pinguPreview');
+prev.innerHTML = '<div class="pg front winken"><div class="fig">' + Pingu.svg() + '</div></div>';
+function showColor(col) { prev.querySelector('.fig').setAttribute('style', Pingu.vars(col)); }
+showColor(saved);
+c.onchange = function (e) { showColor(e.target.value); };
+// Mini-Vorschau der Lounge (alle Ebenen uebereinander)
+var lp = document.getElementById('loungePreview');
+Lounge.PROPS.forEach(function (p) { lp.innerHTML += '<img src="img/lounge/' + p.id + '.svg" alt="">'; });
 document.getElementById('nick').value = localStorage.getItem('nick') || '';
 document.getElementById('loginForm').onsubmit = function (e) {
   e.preventDefault();

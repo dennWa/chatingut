@@ -11,10 +11,11 @@ Start: `npm install` → `npm start` → http://localhost:3000 | Test: `npm test
 - [x] P4 Privatfenster (Win98, verschiebbar), /p Nick Text, Klick-Menü
 - [x] P5 Bots Pingo (läuft, quatscht) + Tuxi (begrüßt, spielt TTT)
 - [x] P6 TicTacToe (Einladen, Spielen, vs Tuxi, Aufgeben)
-- [x] P7 Smoke-Test (16 Checks OK) + Browser-Check
+- [x] P7 Smoke-Test + Browser-Check
+- [x] P8 Lounge: SVG-Grafik (CP-Stil, Kamin/Schnee animiert), CP-Pinguin, Wegfindung, Sitzen, Kakao, Grammophon-Musik, Licht dimmen, Puffle, Bücher, Knuddeln/Winken/Tanzen, Bots nutzen Möbel (23 Checks OK)
 
 ## Ideen / Nächstes
-- [ ] Mehr Räume (Café, Disco begehbar)
+- [ ] Mehr Räume (Café, Disco) mit Türen aus der Lounge
 - [ ] Kleidung/Items, Profile
 - [ ] Weitere Minigames (z.B. Vier gewinnt)
 - [ ] Accounts + Passwort, DB

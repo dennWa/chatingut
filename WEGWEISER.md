@@ -5,7 +5,11 @@
 - public/index.html – Startseite, Login
 - public/chat.html – Chatraum, verbindet alles
 - public/style.css – Retro-Look
-- public/js/room.js – Raum, Pingus, Laufen, Sprechblasen
+- public/js/room.js – Lounge-Client: Ebenen, Pingus, Laufen, Sitzen, Objekte, Effekte, Musik
+- public/js/lounge.js – Karte (Möbel, Sitze, Objekte, Wegfindung), Server+Browser
+- public/js/pingu.js – Pinguin-SVG (CP-Stil, Ansichten/Posen)
+- public/img/lounge/ – Lounge-Grafiken (SVG, generiert)
+- tools/make-art.js – erzeugt die Lounge-SVGs (`node tools/make-art.js`)
 - public/js/chat.js – Sounds, Fenster, Allchat, Privat, Menü
 - public/js/emoji.js – Pixel-Smileys
 - public/js/ttt.js – TTT-Fenster (Client)
