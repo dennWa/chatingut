@@ -7,43 +7,63 @@
 </head>
 <body>
 <div id="wrap">
-  <div id="header"><span class="online">Eingeloggt als: <b id="me">?</b> | <a href="index.html" style="color:#ff0">Logout</a></span><h1>~*~ PinguChat ~*~</h1></div>
-  <marquee scrollamount="4">+++ Raum: Dorfplatz +++ Klick in den Raum zum Laufen +++ Klick auf einen Pingu f&uuml;r Privat / TicTacToe +++</marquee>
+  <div id="header"><span class="online">Eingeloggt als: <b id="me">?</b> | <label><input type="checkbox" id="mute"> Ton aus</label> | <a href="index.html" id="logout" style="color:#ff0">Logout</a></span><h1>~*~ PinguChat ~*~</h1></div>
+  <marquee scrollamount="4">+++ Raum: Dorfplatz +++ Klick in den Raum zum Laufen +++ Klick auf einen Pingu: Privat schreiben oder TicTacToe +++ /hilfe zeigt alle Befehle +++</marquee>
   <div style="padding:8px">
     <table cellspacing="0" cellpadding="0"><tr>
-      <td><div id="room"><div class="placeholder">[ Raum kommt in Phase 2 ]</div></div></td>
+      <td><div id="room"></div></td>
       <td width="6"></td>
-      <td id="userlist"><div class="ut">User im Raum</div><div id="users"></div></td>
+      <td id="userlist"><div class="ut">User im Raum (<span id="count">0</span>)</div><div id="users"></div></td>
     </tr></table>
-    <div id="chatlog"><i style="color:#888">*** Willkommen im Dorfplatz! ***</i></div>
+    <div id="chatlog"></div>
     <div id="chatbar">
-      <input type="text" id="msg" maxlength="120" placeholder="Nachricht eingeben..."> <button id="send">Senden</button>
+      <input type="text" id="msg" maxlength="120" placeholder="Nachricht eingeben... (/hilfe)"> <button id="send">Senden</button>
       <div id="emojis"></div>
     </div>
   </div>
   <div id="footer">&copy; 2006 PinguChat &middot; Bitte bleib freundlich! :-)</div>
 </div>
 <script src="/socket.io/socket.io.js"></script>
+<script src="js/emoji.js"></script>
+<script src="js/room.js"></script>
+<script src="js/chat.js"></script>
+<script src="js/ttt.js"></script>
 <script>
 var nick = localStorage.getItem('nick');
 if (!nick) location.href = 'index.html';
-document.getElementById('me').innerHTML = nick;
-new Audio('/sounds/Windows XP Logon Sound.wav').play().catch(function(){});
-</script>
-<script src="js/room.js"></script>
-<script>
+try { document.getElementById('mute').checked = localStorage.getItem('mute') === '1'; } catch (e) {}
+document.getElementById('mute').onchange = function () { localStorage.setItem('mute', this.checked ? '1' : '0'); };
+
 var socket = io();
+Chat.init(socket);
+TTT.init(socket);
 Room.init(socket, {
   onUsers: function (list) {
-    document.getElementById('users').innerHTML = list.map(function (p) {
-      return '<div style="padding:2px 4px"><span class="swatch" style="background:' + Room.COLORS[p.color] + '"></span> ' +
-        (p.id === Room.myId() ? '<b>' + p.nick + '</b>' : p.nick) + '</div>';
-    }).join('');
+    document.getElementById('count').innerHTML = list.length;
+    var box = document.getElementById('users');
+    box.innerHTML = '';
+    list.sort(function (a, b) { return a.nick.localeCompare(b.nick); }).forEach(function (p) {
+      var d = document.createElement('div');
+      d.className = 'u' + (p.id === Room.myId() ? ' self' : '');
+      d.innerHTML = '<span class="swatch" style="background:' + Room.COLORS[p.color] + '"></span> ' + Emoji.esc(p.nick) + (p.bot ? ' <small>[Bot]</small>' : '');
+      d.onclick = function (e) { e.stopPropagation(); Chat.showMenu(p, e.pageX - 120, e.pageY); };
+      box.appendChild(d);
+    });
   },
-  onClickPlayer: function (p) { alert(p.nick + '\n(Privat & TicTacToe ab Phase 4/6)'); }
+  onClickPlayer: function (p, x, y) { Chat.showMenu(p, x, y); }
 });
-socket.on('welcome', function (d) { document.getElementById('me').innerHTML = d.me.nick; });
-socket.emit('join', { nick: nick, color: localStorage.getItem('color') });
+socket.on('welcome', function (d) {
+  document.getElementById('me').innerHTML = Emoji.esc(d.me.nick);
+  Snd.play('Windows XP Logon Sound');
+});
+// Bei Neuverbindung (z.B. Server-Neustart) wieder einloggen
+socket.on('connect', function () { socket.emit('join', { nick: nick, color: localStorage.getItem('color') }); });
+document.getElementById('logout').onclick = function (e) {
+  e.preventDefault();
+  Snd.play('Windows XP Logoff Sound');
+  socket.disconnect();
+  setTimeout(function () { location.href = 'index.html'; }, 1200);
+};
 </script>
 </body>
 </html>

@@ -1,10 +1,14 @@
 # Wegweiser
-- server.js – Express+Socket.io, /api/stats, /sounds
+- server.js – Server, alle Aktionen (join/move/say/pm), Socket-Events
+- bots.js – Bots Pingo + Tuxi, TTT-KI
+- games/tictactoe.js – TTT-Logik (Server)
 - public/index.html – Startseite, Login
-- public/chat.html – Chatraum-Layout
+- public/chat.html – Chatraum, verbindet alles
 - public/style.css – Retro-Look
-- public/js/room.js – Raum, Pingus zeichnen, Laufen
-- public/js/ – (später) chat/ttt
-- bots.js – (P5) Bots
+- public/js/room.js – Raum, Pingus, Laufen, Sprechblasen
+- public/js/chat.js – Sounds, Fenster, Allchat, Privat, Menü
+- public/js/emoji.js – Pixel-Smileys
+- public/js/ttt.js – TTT-Fenster (Client)
+- test/smoke.js – Schnelltest
 - Sounds/ – WAVs
 - KONZEPT.md – Plan | STATUS.md – Fortschritt

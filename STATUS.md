@@ -1,18 +1,21 @@
 # Status
-Repo: https://github.com/dennWa/chatingut (verknüpft, Branch main)
+Repo: https://github.com/dennWa/chatingut (Branch main)
 Zielgruppe: nostalgische Erwachsene, trotzdem Allrounder
-Start: `npm install` → `npm start` → http://localhost:3000
+Start: `npm install` → `npm start` → http://localhost:3000 | Test: `npm test` (Server muss laufen)
 
 ## Erledigt
 - [x] Konzept, Ignore, Wegweiser
-- [x] P1 Grundgerüst: server.js, index.html (Login Nick+Farbe), chat.html (Layout-Platzhalter), style.css, Sounds unter /sounds, .gitignore
-- [x] Git verknüpft + gepusht
-- [x] P2 Raum: public/js/room.js (Canvas, Pingus, Klick-Laufen, Sync, Userliste)
+- [x] P1 Grundgerüst (Server, Startseite, Layout)
+- [x] P2 Raum (Canvas, Pingus, Klick-Laufen, Sync)
+- [x] P3 Allchat, Sprechblasen, 13 Pixel-Smileys, Sounds, Ton-aus
+- [x] P4 Privatfenster (Win98, verschiebbar), /p Nick Text, Klick-Menü
+- [x] P5 Bots Pingo (läuft, quatscht) + Tuxi (begrüßt, spielt TTT)
+- [x] P6 TicTacToe (Einladen, Spielen, vs Tuxi, Aufgeben)
+- [x] P7 Smoke-Test (16 Checks OK) + Browser-Check
 
-## Geplant
-
-- [ ] P3 Chat
-- [ ] P4 Privat
-- [ ] P5 Bots
-- [ ] P6 TicTacToe
-- [ ] P7 Test
+## Ideen / Nächstes
+- [ ] Mehr Räume (Café, Disco begehbar)
+- [ ] Kleidung/Items, Profile
+- [ ] Weitere Minigames (z.B. Vier gewinnt)
+- [ ] Accounts + Passwort, DB
+- [ ] Hilfe-/Gästebuch-Seite

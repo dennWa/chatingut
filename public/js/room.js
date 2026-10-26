@@ -3,14 +3,14 @@ var Room = (function () {
   var COLORS = { blau:'#1e5bd6', rot:'#d61e1e', gruen:'#1ea83a', gelb:'#e8c31a', pink:'#e85bb5', lila:'#7a3ad6', schwarz:'#222222', orange:'#f07a10' };
   var W = 600, H = 400, FLOOR_Y = 170, SPEED = 130; // px pro Sekunde
   var last = 0;
-  var canvas, ctx, socket, myId, onUsers, onClickPlayer;
+  var canvas, ctx, socket, myId, onUsers, onClickPlayer, roomEl;
   var players = {}; // id -> { nick, color, x, y, tx, ty, dir, step }
 
   function init(sock, opts) {
     socket = sock;
     onUsers = opts.onUsers;
     onClickPlayer = opts.onClickPlayer;
-    var room = document.getElementById('room');
+    var room = roomEl = document.getElementById('room');
     room.innerHTML = '';
     canvas = document.createElement('canvas');
     canvas.width = W; canvas.height = H;
@@ -24,7 +24,7 @@ var Room = (function () {
       changed();
     });
     socket.on('playerJoined', function (p) { add(p); changed(); });
-    socket.on('playerLeft', function (id) { delete players[id]; changed(); });
+    socket.on('playerLeft', function (id) { if (players[id]) removeBubble(players[id]); delete players[id]; changed(); });
     socket.on('playerMoved', function (m) {
       var p = players[m.id]; if (!p) return;
       p.tx = m.x; p.ty = m.y;
@@ -33,7 +33,7 @@ var Room = (function () {
     requestAnimationFrame(loop);
   }
 
-  function add(p) { players[p.id] = { id:p.id, nick:p.nick, color:p.color, x:p.x, y:p.y, tx:p.x, ty:p.y, dir:1, step:0 }; }
+  function add(p) { players[p.id] = { id:p.id, nick:p.nick, color:p.color, bot:p.bot, x:p.x, y:p.y, tx:p.x, ty:p.y, dir:1, step:0 }; }
   function changed() { if (onUsers) onUsers(list()); }
   function list() { return Object.keys(players).map(function (k) { return players[k]; }); }
 
@@ -42,7 +42,7 @@ var Room = (function () {
     var x = e.clientX - r.left, y = e.clientY - r.top;
     // Klick auf einen anderen Pingu?
     var hit = list().filter(function (p) { return p.id !== myId && Math.abs(p.x - x) < 20 && y > p.y - 50 && y < p.y + 5; })[0];
-    if (hit) { if (onClickPlayer) onClickPlayer(hit); return; }
+    if (hit) { if (onClickPlayer) onClickPlayer(hit, e.pageX, e.pageY); e.stopPropagation(); return; }
     if (y < FLOOR_Y) y = FLOOR_Y;
     socket.emit('move', { x: x, y: y });
   }
@@ -57,7 +57,32 @@ var Room = (function () {
       else { p.x = p.tx; p.y = p.ty; p.step = 0; }
     });
   }
-  function loop() { update(); draw(); requestAnimationFrame(loop); }
+  function loop() { update(); draw(); placeBubbles(); requestAnimationFrame(loop); }
+
+  // Sprechblasen als HTML ueber dem Canvas (damit Emoji-Bilder gehen)
+  function say(id, html) {
+    var p = players[id]; if (!p) return;
+    removeBubble(p);
+    var b = document.createElement('div');
+    b.className = 'bubble'; b.innerHTML = html;
+    roomEl.appendChild(b);
+    p.bubble = b;
+    p.bubbleTimer = setTimeout(function () { removeBubble(p); }, 6000);
+    placeBubbles();
+  }
+  function removeBubble(p) {
+    if (p.bubble && p.bubble.parentNode) p.bubble.parentNode.removeChild(p.bubble);
+    clearTimeout(p.bubbleTimer); p.bubble = null;
+  }
+  function placeBubbles() {
+    list().forEach(function (p) {
+      if (!p.bubble) return;
+      var b = p.bubble, w = b.offsetWidth, h = b.offsetHeight;
+      b.style.left = Math.max(2, Math.min(W - w - 2, p.x - w / 2)) + 'px';
+      b.style.top = Math.max(2, p.y - 66 - h) + 'px';
+    });
+  }
+  function byNick(n) { n = String(n).toLowerCase(); return list().filter(function (p) { return p.nick.toLowerCase() === n; })[0]; }
 
   function draw() {
     drawBackground();
@@ -125,5 +150,5 @@ var Room = (function () {
     ctx.fillStyle = '#000'; ctx.fillText(p.nick, x, y + 14);
   }
 
-  return { init: init, players: function () { return players; }, myId: function () { return myId; }, COLORS: COLORS };
+  return { init: init, say: say, nick: function () { return players[myId] ? players[myId].nick : ''; }, byNick: byNick, players: function () { return players; }, myId: function () { return myId; }, COLORS: COLORS };
 })();
