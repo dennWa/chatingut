@@ -24,6 +24,7 @@
   <div id="footer">&copy; 2006 PinguChat &middot; Bitte bleib freundlich! :-)</div>
 </div>
 <script src="/socket.io/socket.io.js"></script>
+<script src="js/offline.js"></script>
 <script src="js/emoji.js"></script>
 <script src="js/pingu.js"></script>
 <script src="js/lounge.js"></script>
@@ -36,7 +37,7 @@ if (!nick) location.href = 'index.html';
 try { document.getElementById('mute').checked = localStorage.getItem('mute') === '1'; } catch (e) {}
 document.getElementById('mute').onchange = function () { localStorage.setItem('mute', this.checked ? '1' : '0'); };
 
-var socket = io();
+var socket = typeof io === "function" ? io() : new OfflineSocket();
 Chat.init(socket);
 TTT.init(socket);
 Room.init(socket, {
